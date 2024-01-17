@@ -29,4 +29,4 @@ async def post_reset_token(user_id:int,token:TokenData=Security(api_key_validato
 	user_token = generate_token(user_id)
 	user.data.api.token = sha256(user_token.encode()).hexdigest()
 	await user.save_changes()
-	return user.data.api.token
+	return user_token
