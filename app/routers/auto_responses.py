@@ -38,7 +38,14 @@ async def get_masked_file(masked_url:str):
 	mask = await DB.au_mask(PydanticObjectId(hex(decode_b69(masked_url))[2:]))
 	if mask is None or ((au:=await DB.auto_response(mask.au)) is None):
 		raise HTTPException(404,'auto response not found!')
-	return FileResponse(f'./data/au/{au.response}')
+	match au.id[0]:
+		case 'b': return FileResponse(f'./data/au/base/{au.response}')
+		case 'u': return FileResponse(f'./data/au/unique/{au.data.guild}/{au.response}')
+		case 'c': return FileResponse(f'./data/au/custom/{au.data.guild}/{au.response}')
+		case 'm': return FileResponse(f'./data/au/mention/{au.data.user}/{au.response}')
+		case 'p': return FileResponse(f'./data/au/personal/{au.data.user}/{au.response}')
+		case _: pass
+	return HTTPException(500,'invalid auto response type!')
 
 @router.post('/{au_id}/masked_url')
 async def post_masked_url(au_id:str,token:TokenData=Security(api_key_validator)) -> str:
