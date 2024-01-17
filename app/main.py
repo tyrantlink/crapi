@@ -13,7 +13,7 @@ async def lifespan(app:FastAPI):
 	await DB.connect()
 	yield
 
-limiter = Limiter(key_func=ratelimit_key,default_limits=['5/second','120/minute'])
+limiter = Limiter(key_func=ratelimit_key,default_limits=['3/second','120/minute'])
 app = FastAPI(lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded,_rate_limit_exceeded_handler)
