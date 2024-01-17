@@ -1,4 +1,4 @@
-from fastapi.security import APIKeyHeader as DumbKeyHeader
+from fastapi.security import APIKeyHeader# as DumbKeyHeader
 from fastapi import Security,HTTPException
 from app.utils.tyrantlib import decode_b69
 from app.utils.db import MongoDatabase
@@ -13,13 +13,13 @@ with open('project.toml') as f:
 BASE_URL = _project['base_url']
 DB = MongoDatabase(_project['mongo_uri'])
 
-class APIKeyHeader(DumbKeyHeader):
-	async def __call__(self,request):
-		api_key = request.headers.get(self.model.name)
-		if not api_key:
-			if self.auto_error: raise HTTPException(status_code=401, detail="Not authenticated")
-			else: return None
-		return api_key
+# class APIKeyHeader(DumbKeyHeader):
+# 	async def __call__(self,request):
+# 		api_key = request.headers.get(self.model.name)
+# 		if not api_key:
+# 			if self.auto_error: raise HTTPException(status_code=401, detail="Not authenticated")
+# 			else: return None
+# 		return api_key
 
 API_KEY = APIKeyHeader(name='token')
 
