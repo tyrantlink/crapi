@@ -1,5 +1,5 @@
 from fastapi.security import APIKeyHeader# as DumbKeyHeader
-from fastapi import Security,HTTPException
+from fastapi import Security,HTTPException,Request
 from app.utils.tyrantlib import decode_b69
 from app.utils.db import MongoDatabase
 from typing import NamedTuple
@@ -44,3 +44,12 @@ async def api_key_validator(api_key:str = Security(API_KEY)) -> TokenData:
 		timestamp=decode_b69(regex.group(2)),
 		key=decode_b69(regex.group(3)),
 		permissions=user.data.api.permissions)
+
+async def inc_user_api_usage(request:Request):
+	token = request.headers.get('token',None)
+	if token is None: return
+	try: token_data = await api_key_validator(token)
+	except HTTPException: return
+	user = await DB.user(token_data.user_id)
+	user.data.statistics.api_usage += 1
+	await user.save_changes()
