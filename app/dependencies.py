@@ -1,8 +1,10 @@
 from fastapi.security import APIKeyHeader# as DumbKeyHeader
+from app.utils.db.documents.ext.flags import APIFlags
 from fastapi import Security,HTTPException,Request
 from app.utils.tyrantlib import decode_b69
 from app.utils.db import MongoDatabase
 from typing import NamedTuple
+from secrets import token_hex
 from hashlib import sha256
 from tomllib import loads
 from re import match
@@ -51,6 +53,19 @@ async def inc_user_api_usage(request:Request):
 	if token is None: return
 	try: token_data = await api_key_validator(token)
 	except HTTPException: return
+
+	# putting this here because dumb
+	if (token_data.permissions & APIFlags.ADMIN)|(token_data.permissions & APIFlags.BOT):
+		request.app.state.ratelimit_exempt.add(token)
+
 	user = await DB.user(token_data.user_id)
 	user.data.statistics.api_usage += 1
 	await user.save_changes()
+
+def ratelimit_key(request:Request):
+
+	token = request.headers.get('token',None)
+	if token is None or token in request.app.state.ratelimit_exempt:
+		return token_hex(32)
+
+	return token
