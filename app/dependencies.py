@@ -3,6 +3,7 @@ from fastapi import Security,HTTPException,Request
 from app.utils.tyrantlib import decode_b69
 from app.utils.db import MongoDatabase
 from typing import NamedTuple
+from hashlib import sha256
 from tomllib import loads
 from re import match
 
@@ -37,7 +38,7 @@ async def api_key_validator(api_key:str = Security(API_KEY)) -> TokenData:
 	user = await DB.user(user_id)
 	if user is None:
 		raise HTTPException(400,'api key not found!')
-	if api_key != user.data.api.token:
+	if sha256(api_key.encode()).hexdigest() != user.data.api.token:
 		raise HTTPException(400,'api key invalid!')
 	return TokenData(
 		user_id=decode_b69(regex.group(1)),

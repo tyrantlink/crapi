@@ -3,6 +3,7 @@ from app.utils.db.documents.ext.flags import APIFlags
 from fastapi import APIRouter,HTTPException,Security
 from app.utils.tyrantlib import generate_token
 from app.utils.db.documents import User
+from hashlib import sha256
 
 
 router = APIRouter(prefix='/user')
@@ -25,6 +26,7 @@ async def post_reset_token(user_id:int,token:TokenData=Security(api_key_validato
 	user = await DB.user(user_id)
 	if user is None:
 		raise HTTPException(404,'user not found!')
-	user.data.api.token = generate_token(user_id)
+	user_token = generate_token(user_id)
+	user.data.api.token = sha256(user_token.encode()).hexdigest()
 	await user.save_changes()
 	return user.data.api.token
