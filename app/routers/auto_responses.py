@@ -56,6 +56,6 @@ async def post_masked_url(au_id:str,token:TokenData=Security(api_key_validator))
 	return f'{BASE_URL}/au/file/{path}'
 
 @router.get('/{au_id}')
-async def get_au(au_id:str,token:TokenData=Security(api_key_validator)) -> dict:
+async def get_au(au_id:str,token:TokenData=Security(api_key_validator)) -> AutoResponse:
 	au = await _base_get_checks(au_id,token)
 	return au.model_dump(mode='json')

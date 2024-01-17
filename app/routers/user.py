@@ -2,12 +2,13 @@ from app.dependencies import DB,api_key_validator,TokenData
 from app.utils.db.documents.ext.flags import APIFlags
 from fastapi import APIRouter,HTTPException,Security
 from app.utils.tyrantlib import generate_token
+from app.utils.db.documents import User
 
 
 router = APIRouter(prefix='/user')
 
 @router.get('/{user_id}')
-async def get_user(user_id:int,token:TokenData=Security(api_key_validator)) -> dict:
+async def get_user(user_id:int,token:TokenData=Security(api_key_validator)) -> User:
 	if not ((token.permissions & APIFlags.ADMIN)|(token.permissions & APIFlags.BOT)
 				 or user_id == token.user_id):
 		raise HTTPException(403,'you do not have permission to access this user!')
