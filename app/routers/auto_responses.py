@@ -1,0 +1,47 @@
+from app.dependencies import DB,BASE_URL,api_key_validator,TokenData
+from app.utils.tyrantlib import encode_b69,decode_b69
+from app.utils.db.documents.ext.flags import APIFlags
+from fastapi import APIRouter,HTTPException,Security
+from app.utils.db.documents import AutoResponse
+from fastapi.responses import FileResponse
+from beanie import PydanticObjectId
+
+
+router = APIRouter(prefix='/au')
+
+async def _base_get_checks(au_id:str,token:TokenData) -> AutoResponse:
+	if not ((
+		token.permissions & APIFlags.ADMIN)|(token.permissions & APIFlags.BOT) or
+		au_id in (await DB.user(token.user_id)).data.auto_responses.found4
+	):
+		raise HTTPException(403,'you do not have permission to access this auto response!')
+	au = await DB.auto_response(au_id)
+	if au is None:
+		raise HTTPException(404,'auto response not found!')
+	return au
+
+@router.get('/{au_id}/file')
+async def get_file(au_id:str,token:TokenData=Security(api_key_validator)):
+	au = await _base_get_checks(au_id,token)
+	return FileResponse(f'./data/au/{au.response}')
+
+@router.get('/file/{masked_url}')
+async def get_masked_file(masked_url:str):
+	mask = await DB.au_mask(PydanticObjectId(hex(decode_b69(masked_url))[2:]))
+	if mask is None or ((au:=await DB.auto_response(mask.au)) is None):
+		raise HTTPException(404,'auto response not found!')
+	return FileResponse(f'./data/au/{au.response}')
+
+@router.post('/{au_id}/masked_url')
+async def post_masked_url(au_id:str,token:TokenData=Security(api_key_validator)) -> str:
+	if not ((token.permissions & APIFlags.ADMIN)|(token.permissions & APIFlags.BOT)):
+		raise HTTPException(403,'you do not have permission to use this endpoint!')
+	mask = DB.new.au_mask(au_id)
+	await mask.insert()
+	path = encode_b69(int(str(mask.id),16))
+	return f'{BASE_URL}/au/f/{path}'
+
+@router.get('/{au_id}')
+async def get_au(au_id:str,token:TokenData=Security(api_key_validator)) -> dict:
+	au = await _base_get_checks(au_id,token)
+	return au.model_dump(mode='json')

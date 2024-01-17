@@ -1,0 +1,4 @@
+venv
+project.toml
+__pycache__
+data

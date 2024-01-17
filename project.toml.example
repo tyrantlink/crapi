@@ -1,0 +1,2 @@
+base_url='https://localhost:8080'
+mongo_uri='mongodb://localhost:27017/'
