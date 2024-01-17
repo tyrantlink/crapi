@@ -31,7 +31,6 @@ async def get_file(au_id:str,token:TokenData=Security(api_key_validator)):
 		case 'p': return FileResponse(f'./data/au/personal/{au.data.user}/{au.response}')
 		case _: pass
 	return HTTPException(500,'invalid auto response type!')
-	
 
 @router.get('/file/{masked_url}')
 async def get_masked_file(masked_url:str):
