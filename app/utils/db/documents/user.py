@@ -33,7 +33,7 @@ class User(Document):
 
 	class UserData(BaseModel):
 		class UserDataAPI(BaseModel):
-			token:Optional[str] = Field(None,pattern=r'^[0-9a-fA-F]{64}$',description='api token')
+			token:Optional[str] = Field(None,pattern=r'^\$2[ayb]\$.{56}$',description='api token')
 			permissions:int = Field(0,description='api permissions')
 		
 		class UserDataAutoResponses(BaseModel):
