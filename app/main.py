@@ -27,8 +27,10 @@ app.include_router(auto_responses)
 app.include_router(user)
 
 @app.middleware('http')
-async def log_api_usage(request:Request,call_next:Callable):
+async def root_middleware(request:Request,call_next:Callable):
 	create_task(inc_user_api_usage(request))
+	if request.headers.get('CF-Connecting-IP',False):
+		request.scope['client'] = (request.headers['CF-Connecting-IP'],request.scope['client'][1])
 	return await call_next(request)
 
 @app.get('/')
