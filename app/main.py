@@ -1,5 +1,6 @@
 from app.dependencies import DB,inc_user_api_usage,ratelimit_key
 from slowapi import Limiter, _rate_limit_exceeded_handler
+from app.utils.version_checker import get_version
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
 from contextlib import asynccontextmanager
@@ -10,7 +11,9 @@ from typing import Callable
 
 @asynccontextmanager
 async def lifespan(app:FastAPI):
+	global VERSION
 	await DB.connect()
+	VERSION = await get_version()
 	yield
 
 limiter = Limiter(key_func=ratelimit_key,default_limits=['3/second','120/minute'])
@@ -28,7 +31,10 @@ async def log_api_usage(request:Request,call_next:Callable):
 	create_task(inc_user_api_usage(request))
 	return await call_next(request)
 
-# @app.get('/')
-@limiter.limit('5/second')
+@app.get('/')
 async def root(request:Request):
 	return 'crab api, for use with /reg/nal and /reg/nal derivatives.'
+
+@app.get('/version')
+async def version(request:Request):
+	return VERSION
