@@ -41,7 +41,7 @@ async def get_masked_file(masked_url:str):
 		case 'b': return FileResponse(f'./data/au/base/{au.response}')
 		case 'u': return FileResponse(f'./data/au/unique/{au.data.guild}/{au.response}')
 		case 'c': return FileResponse(f'./data/au/custom/{au.data.guild}/{au.response}')
-		case 'm': return FileResponse(f'./data/au/mention/{au.data.user}/{au.response}')
+		case 'm': return FileResponse(f'./data/au/mention/{au.trigger}/{au.response}')
 		case 'p': return FileResponse(f'./data/au/personal/{au.data.user}/{au.response}')
 		case _: pass
 	return HTTPException(500,'invalid auto response type!')
