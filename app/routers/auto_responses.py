@@ -1,5 +1,5 @@
 from app.dependencies import DB,BASE_URL,api_key_validator,TokenData
-from app.utils.tyrantlib import encode_b69,decode_b69
+from app.utils.tyrantlib import encode_b66,decode_b66
 from app.utils.db.documents.ext.flags import APIFlags
 from fastapi import APIRouter,HTTPException,Security
 from app.utils.db.documents import AutoResponse
@@ -34,7 +34,7 @@ async def get_file(au_id:str,token:TokenData=Security(api_key_validator)):
 
 @router.get('/file/{masked_url}')
 async def get_masked_file(masked_url:str):
-	mask = await DB.au_mask(PydanticObjectId(hex(decode_b69(masked_url))[2:]))
+	mask = await DB.au_mask(PydanticObjectId(hex(decode_b66(masked_url))[2:]))
 	if mask is None or ((au:=await DB.auto_response(mask.au)) is None):
 		raise HTTPException(404,'auto response not found!')
 	match au.id[0]:
@@ -52,7 +52,7 @@ async def post_masked_url(au_id:str,token:TokenData=Security(api_key_validator))
 		raise HTTPException(403,'you do not have permission to use this endpoint!')
 	mask = DB.new.au_mask(au_id)
 	await mask.insert()
-	path = encode_b69(int(str(mask.id),16))
+	path = encode_b66(int(str(mask.id),16))
 	return f'{BASE_URL}/au/file/{path}'
 
 @router.get('/{au_id}')
