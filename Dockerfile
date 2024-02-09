@@ -1,5 +1,11 @@
 FROM python:3.11
 
+RUN groupadd -g 1000 -o crapi
+RUN useradd -m -u 1000 -g 1000 -o -s /bin/bash crapi
+USER crapi
+
+ENV PATH /home/crapi/.local/bin:$PATH
+
 WORKDIR /app
 
 COPY . .
