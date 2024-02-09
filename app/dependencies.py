@@ -1,7 +1,7 @@
 from fastapi.security import APIKeyHeader# as DumbKeyHeader
 from app.utils.db.documents.ext.flags import APIFlags
 from fastapi import Security,HTTPException,Request
-from app.utils.tyrantlib import decode_b69
+from app.utils.tyrantlib import decode_b66
 from app.utils.db import MongoDatabase
 from typing import NamedTuple
 from secrets import token_hex
@@ -36,16 +36,16 @@ async def api_key_validator(api_key:str = Security(API_KEY)) -> TokenData:
 	regex = match(r'^([A-Za-z0-9-_~;$*,]{1,16})\.([A-Za-z0-9-_~;$*,]{5,8})\.([A-Za-z0-9-_~;$*,]{20,27})$',api_key)
 	if regex is None:
 		raise HTTPException(400,'api key not in correct format!')
-	user_id=decode_b69(regex.group(1))
+	user_id=decode_b66(regex.group(1))
 	user = await DB.user(user_id)
 	if user is None:
 		raise HTTPException(400,'api key not found!')
 	if not checkpw(api_key.encode(),user.data.api.token.encode()):
 		raise HTTPException(400,'api key invalid!')
 	return TokenData(
-		user_id=decode_b69(regex.group(1)),
-		timestamp=decode_b69(regex.group(2)),
-		key=decode_b69(regex.group(3)),
+		user_id=decode_b66(regex.group(1)),
+		timestamp=decode_b66(regex.group(2)),
+		key=decode_b66(regex.group(3)),
 		permissions=user.data.api.permissions)
 
 async def inc_user_api_usage(request:Request):

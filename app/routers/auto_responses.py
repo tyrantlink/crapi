@@ -1,4 +1,5 @@
 from app.dependencies import DB,BASE_URL,api_key_validator,TokenData
+from app.utils.db.documents.ext.enums import AutoResponseType
 from app.utils.tyrantlib import encode_b66,decode_b66
 from app.utils.db.documents.ext.flags import APIFlags
 from fastapi import APIRouter,HTTPException,Security
@@ -23,6 +24,8 @@ async def _base_get_checks(au_id:str,token:TokenData) -> AutoResponse:
 @router.get('/{au_id}/file')
 async def get_file(au_id:str,token:TokenData=Security(api_key_validator)):
 	au = await _base_get_checks(au_id,token)
+	if au.type == AutoResponseType.deleted:
+		return FileResponse('./data/au/deleted.png')
 	match au.id[0]:
 		case 'b': return FileResponse(f'./data/au/base/{au.response}')
 		case 'u': return FileResponse(f'./data/au/unique/{au.data.guild}/{au.response}')

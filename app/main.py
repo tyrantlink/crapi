@@ -1,6 +1,6 @@
 from app.dependencies import DB,inc_user_api_usage,ratelimit_key
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from app.utils.version_checker import get_version
+from app.utils.version_checker import get_semantic_version
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
 from contextlib import asynccontextmanager
@@ -13,7 +13,7 @@ from typing import Callable
 async def lifespan(app:FastAPI):
 	global VERSION
 	await DB.connect()
-	VERSION = await get_version()
+	VERSION = await get_semantic_version()
 	yield
 
 limiter = Limiter(key_func=ratelimit_key,default_limits=['3/second','120/minute'])
