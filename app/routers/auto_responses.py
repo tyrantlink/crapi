@@ -1,11 +1,12 @@
 from app.dependencies import DB,BASE_URL,api_key_validator,TokenData
+from app.utils.tyrantlib import encode_b66,decode_b66,base66chars
 from app.utils.db.documents.ext.enums import AutoResponseType
-from app.utils.tyrantlib import encode_b66,decode_b66
 from app.utils.db.documents.ext.flags import APIFlags
 from fastapi import APIRouter,HTTPException,Security
 from app.utils.db.documents import AutoResponse
 from fastapi.responses import FileResponse
 from beanie import PydanticObjectId
+from re import fullmatch,escape
 
 
 router = APIRouter(prefix='/au')
@@ -37,6 +38,8 @@ async def get_file(au_id:str,token:TokenData=Security(api_key_validator)):
 
 @router.get('/file/{masked_url}')
 async def get_masked_file(masked_url:str):
+	if not fullmatch(rf'[{escape(base66chars)}]+',masked_url):
+		raise HTTPException(400,'invalid masked url!')
 	mask = await DB.au_mask(PydanticObjectId(hex(decode_b66(masked_url))[2:]))
 	if mask is None or ((au:=await DB.auto_response(mask.au)) is None):
 		raise HTTPException(404,'auto response not found!')

@@ -1,13 +1,13 @@
 from fastapi.security import APIKeyHeader# as DumbKeyHeader
+from app.utils.tyrantlib import decode_b66,base66chars
 from app.utils.db.documents.ext.flags import APIFlags
 from fastapi import Security,HTTPException,Request
-from app.utils.tyrantlib import decode_b66
 from app.utils.db import MongoDatabase
 from typing import NamedTuple
 from secrets import token_hex
+from re import match,escape
 from bcrypt import checkpw
 from tomllib import loads
-from re import match
 
 
 with open('project.toml') as f:
@@ -15,6 +15,10 @@ with open('project.toml') as f:
 
 BASE_URL = _project['base_url']
 DB = MongoDatabase(_project['mongo_uri'])
+TOKEN_MATCH_PATTERN = ''.join([
+	f'^([{escape(base66chars)}])',r'{1,16}\.',
+	f'([{escape(base66chars)}])',r'{5,8}\.',
+	f'([{escape(base66chars)}])',r'{20,27}$'])
 
 # class APIKeyHeader(DumbKeyHeader):
 # 	async def __call__(self,request):
@@ -33,7 +37,7 @@ class TokenData(NamedTuple):
 	permissions: int
 
 async def api_key_validator(api_key:str = Security(API_KEY)) -> TokenData:
-	regex = match(r'^([A-Za-z0-9-_~;$*,]{1,16})\.([A-Za-z0-9-_~;$*,]{5,8})\.([A-Za-z0-9-_~;$*,]{20,27})$',api_key)
+	regex = match(TOKEN_MATCH_PATTERN,api_key)
 	if regex is None:
 		raise HTTPException(400,'api key not in correct format!')
 	user_id=decode_b66(regex.group(1))
