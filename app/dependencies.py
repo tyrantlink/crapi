@@ -3,10 +3,12 @@ from app.utils.tyrantlib import decode_b66,base66chars
 from app.utils.db.documents.ext.flags import APIFlags
 from fastapi import Security,HTTPException,Request
 from app.utils.db import MongoDatabase
+from asyncio import sleep,create_task
 from typing import NamedTuple
 from secrets import token_hex
 from re import match,escape
 from bcrypt import checkpw
+from hashlib import sha256
 from tomllib import loads
 
 
@@ -30,6 +32,23 @@ TOKEN_MATCH_PATTERN = ''.join([
 
 API_KEY = APIKeyHeader(name='token')
 
+class ValidatedTokens:
+	def __init__(self):
+		self.__tokens = set()
+
+	async def add(self,token:str):
+		self.__tokens.add(sha256(token.encode()).hexdigest())
+		create_task(self.remove(token,86400))
+
+	async def remove(self,token:str,after:int=None):
+		await sleep(after if after is not None else 0)
+		self.__tokens.remove(token)
+
+	def __contains__(self,token:str):
+		return sha256(token.encode()).hexdigest() in self.__tokens
+
+VALID_TOKENS = ValidatedTokens()
+
 class TokenData(NamedTuple):
 	user_id: int
 	timestamp: int
@@ -40,12 +59,14 @@ async def api_key_validator(api_key:str = Security(API_KEY)) -> TokenData:
 	regex = match(TOKEN_MATCH_PATTERN,api_key)
 	if regex is None:
 		raise HTTPException(400,'api key not in correct format!')
-	user_id=decode_b66(regex.group(1))
+	user_id = decode_b66(regex.group(1))
 	user = await DB.user(user_id)
 	if user is None:
 		raise HTTPException(400,'api key not found!')
-	if not checkpw(api_key.encode(),user.data.api.token.encode()):
-		raise HTTPException(400,'api key invalid!')
+	if not user.data.api.token in VALID_TOKENS:
+		if not checkpw(api_key.encode(),user.data.api.token.encode()):
+			raise HTTPException(400,'api key invalid!')
+		await VALID_TOKENS.add(user.data.api.token)
 	return TokenData(
 		user_id=decode_b66(regex.group(1)),
 		timestamp=decode_b66(regex.group(2)),

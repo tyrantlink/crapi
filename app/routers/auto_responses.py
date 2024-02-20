@@ -16,7 +16,7 @@ async def _base_get_checks(au_id:str,token:TokenData) -> AutoResponse:
 		token.permissions & APIFlags.ADMIN)|(token.permissions & APIFlags.BOT) or
 		au_id in (await DB.user(token.user_id)).data.auto_responses.found
 	):
-		raise HTTPException(403,'you do not have permission to access this auto response!')
+		raise HTTPException(401,'you do not have permission to access this auto response!')
 	au = await DB.auto_response(au_id)
 	if au is None:
 		raise HTTPException(404,'auto response not found!')
