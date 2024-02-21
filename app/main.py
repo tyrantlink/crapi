@@ -1,13 +1,13 @@
-from app.dependencies import DB,inc_user_api_usage,ratelimit_key
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from app.dependencies import DB,inc_user_api_usage
 from app.utils.version_checker import get_semantic_version
-from slowapi.middleware import SlowAPIMiddleware
-from slowapi.errors import RateLimitExceeded
 from contextlib import asynccontextmanager
 from .routers import auto_responses,user
 from fastapi import FastAPI,Request
+from app.limiter import RateLimiter
 from asyncio import create_task
 from typing import Callable
+from time import time
+
 
 @asynccontextmanager
 async def lifespan(app:FastAPI):
@@ -16,21 +16,21 @@ async def lifespan(app:FastAPI):
 	VERSION = await get_semantic_version()
 	yield
 
-limiter = Limiter(key_func=ratelimit_key,default_limits=['3/second','120/minute'])
 app = FastAPI(lifespan=lifespan)
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded,_rate_limit_exceeded_handler)
-app.add_middleware(SlowAPIMiddleware)
-app.state.ratelimit_exempt = set()
-
+limiter = RateLimiter(5,180,420)
 app.include_router(auto_responses)
 app.include_router(user)
 
 @app.middleware('http')
 async def root_middleware(request:Request,call_next:Callable):
-	create_task(inc_user_api_usage(request))
-	if request.headers.get('CF-Connecting-IP',False):
+	t = time()
+	ip = request.headers.get('CF-Connecting-IP',None)
+	limiter.request(ip,t)
+	if ip is not None:
 		request.scope['client'] = (request.headers['CF-Connecting-IP'],request.scope['client'][1])
+	if not limiter.check(ip,t):
+		return limiter.error(ip,t)
+	create_task(inc_user_api_usage(request))
 	return await call_next(request)
 
 @app.get('/')

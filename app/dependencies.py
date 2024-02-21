@@ -1,12 +1,12 @@
 from fastapi.security import APIKeyHeader# as DumbKeyHeader
 from app.utils.tyrantlib import decode_b66,base66chars
 from app.utils.db.documents.ext.flags import APIFlags
+from asyncio import sleep,create_task,get_event_loop
 from fastapi import Security,HTTPException,Request
+from concurrent.futures import ThreadPoolExecutor
 from app.utils.db import MongoDatabase
-from asyncio import sleep,create_task
 from typing import NamedTuple
-from secrets import token_hex
-from re import match,escape
+from re import match
 from bcrypt import checkpw
 from hashlib import sha256
 from tomllib import loads
@@ -55,6 +55,11 @@ class TokenData(NamedTuple):
 	key: int
 	permissions: int
 
+async def acheckpw(password:str,hashed:str) -> bool:
+	with ThreadPoolExecutor() as executor:
+		result = await get_event_loop().run_in_executor(executor,lambda: checkpw(password.encode(),hashed.encode()))
+	return result
+
 async def api_key_validator(api_key:str = Security(API_KEY)) -> TokenData:
 	regex = match(TOKEN_MATCH_PATTERN,api_key)
 	if regex is None:
@@ -64,7 +69,7 @@ async def api_key_validator(api_key:str = Security(API_KEY)) -> TokenData:
 	if user is None:
 		raise HTTPException(400,'api key not found!')
 	if not user.data.api.token in VALID_TOKENS:
-		if not checkpw(api_key.encode(),user.data.api.token.encode()):
+		if not await acheckpw(api_key,user.data.api.token):
 			raise HTTPException(400,'api key invalid!')
 		await VALID_TOKENS.add(user.data.api.token)
 	return TokenData(
@@ -79,18 +84,6 @@ async def inc_user_api_usage(request:Request):
 	try: token_data = await api_key_validator(token)
 	except HTTPException: return
 
-	# putting this here because dumb
-	if (token_data.permissions & APIFlags.ADMIN)|(token_data.permissions & APIFlags.BOT):
-		request.app.state.ratelimit_exempt.add(token)
-
 	user = await DB.user(token_data.user_id)
 	user.data.statistics.api_usage += 1
 	await user.save_changes()
-
-def ratelimit_key(request:Request):
-
-	token = request.headers.get('token',None)
-	if token is None or token in request.app.state.ratelimit_exempt:
-		return token_hex(32)
-
-	return token
