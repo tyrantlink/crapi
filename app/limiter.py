@@ -21,6 +21,7 @@ class RateLimiter:
 					del self.__requests[key]
 
 	def request(self,identifier:str,time:float) -> None:
+		if identifier == 'bypass_ratelimit': return
 		self.__requests.setdefault(identifier,[]).append(time)
 		self.clear_old_requests(time,identifier)
 	

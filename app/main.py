@@ -1,5 +1,6 @@
-from app.dependencies import DB,inc_user_api_usage
+from app.dependencies import DB,inc_user_api_usage,api_key_validator
 from app.utils.version_checker import get_semantic_version
+from app.utils.db.documents.ext.flags import APIFlags
 from contextlib import asynccontextmanager
 from .routers import auto_responses,user
 from fastapi import FastAPI,Request
@@ -25,8 +26,14 @@ app.include_router(user)
 async def root_middleware(request:Request,call_next:Callable):
 	t = time()
 	ip = request.headers.get('CF-Connecting-IP',None)
+	token = request.headers.get('token',None)
+	if token is not None:
+		try: token_data = await api_key_validator(token)
+		except: token_data = None
+		if token_data is not None and token_data.permissions & APIFlags.ADMIN+APIFlags.BOT:
+			ip = 'bypass_ratelimit'
 	limiter.request(ip,t)
-	if ip is not None:
+	if ip not in {None,'bypass_ratelimit'}:
 		request.scope['client'] = (request.headers['CF-Connecting-IP'],request.scope['client'][1])
 	if not limiter.check(ip,t):
 		return limiter.error(ip,t)
