@@ -5,10 +5,10 @@ from fastapi import Security,HTTPException,Request
 from concurrent.futures import ThreadPoolExecutor
 from app.utils.db import MongoDatabase
 from typing import NamedTuple
+from re import match,escape
 from bcrypt import checkpw
 from hashlib import sha256
 from tomllib import loads
-from re import match
 
 
 with open('project.toml') as f:
@@ -17,9 +17,9 @@ with open('project.toml') as f:
 BASE_URL = _project['base_url']
 DB = MongoDatabase(_project['mongo_uri'])
 TOKEN_MATCH_PATTERN = ''.join([
-	f'^([{base66chars}]',r'{1,16})\.',
-	f'([{base66chars}]',r'{5,8})\.',
-	f'([{base66chars}]',r'{20,27})$'])
+	f'^([{escape(base66chars)}]',r'{1,16})\.',
+	f'([{escape(base66chars)}]',r'{5,8})\.',
+	f'([{escape(base66chars)}]',r'{20,27})$'])
 
 # class APIKeyHeader(DumbKeyHeader):
 # 	async def __call__(self,request):
