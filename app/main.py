@@ -1,8 +1,8 @@
 from app.dependencies import DB,inc_user_api_usage,api_key_validator
 from app.utils.version_checker import get_semantic_version
 from app.utils.db.documents.ext.flags import APIFlags
+from .routers import auto_responses,user,internal
 from contextlib import asynccontextmanager
-from .routers import auto_responses,user
 from fastapi import FastAPI,Request
 from app.limiter import RateLimiter
 from asyncio import create_task
@@ -20,6 +20,7 @@ async def lifespan(app:FastAPI):
 app = FastAPI(lifespan=lifespan)
 limiter = RateLimiter(5,180,420)
 app.include_router(auto_responses)
+app.include_router(internal)
 app.include_router(user)
 
 @app.middleware('http')

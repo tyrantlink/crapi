@@ -65,7 +65,7 @@ async def api_key_validator(api_key:str = Security(API_KEY)) -> TokenData:
 		raise HTTPException(400,'api key not in correct format!')
 	user_id = decode_b66(regex.group(1))
 	user = await DB.user(user_id)
-	if user is None:
+	if user is None or user.data.api.token is None:
 		raise HTTPException(400,'api key not found!')
 	if not user.data.api.token in VALID_TOKENS:
 		if not await acheckpw(api_key,user.data.api.token):
