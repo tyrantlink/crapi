@@ -17,7 +17,7 @@ async def gateway(ws:WebSocket,token:TokenData=Security(api_key_validator)):
 	try:
 		while True:
 			await manager.handle_message(str(token.user_id),await ws.receive_json())
-	except WebSocketDisconnect:
+	except (WebSocketDisconnect,RuntimeError):
 		await manager.disconnect(str(token.user_id),close=False)
 	except Exception as e:
 		await manager.disconnect(str(token.user_id))
@@ -27,5 +27,6 @@ async def gateway(ws:WebSocket,token:TokenData=Security(api_key_validator)):
 async def reload_au(token:TokenData=Security(api_key_validator)) -> JSONResponse:
 	if not token.permissions & APIFlags.BOT:
 		raise HTTPException(403,'you do not have permission to use this endpoint!')
-	await manager.broadcast(Request(req=Req.RELOAD_AU))
+	try: await manager.broadcast(Request(req=Req.RELOAD_AU),True)
+	except TimeoutError: raise HTTPException(500,'not all clients responded!')
 	return JSONResponse({'success':True})

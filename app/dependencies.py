@@ -1,7 +1,7 @@
-from fastapi.security import APIKeyHeader# as DumbKeyHeader
+from fastapi import Security,HTTPException,Request,WebSocket
+from fastapi.security import APIKeyHeader as DumbKeyHeader
 from app.utils.tyrantlib import decode_b66,base66chars
 from asyncio import sleep,create_task,get_event_loop
-from fastapi import Security,HTTPException,Request
 from concurrent.futures import ThreadPoolExecutor
 from app.utils.db import MongoDatabase
 from typing import NamedTuple
@@ -21,13 +21,15 @@ TOKEN_MATCH_PATTERN = ''.join([
 	f'([{escape(base66chars)}]',r'{5,8})\.',
 	f'([{escape(base66chars)}]',r'{20,27})$'])
 
-# class APIKeyHeader(DumbKeyHeader):
-# 	async def __call__(self,request):
-# 		api_key = request.headers.get(self.model.name)
-# 		if not api_key:
-# 			if self.auto_error: raise HTTPException(status_code=401, detail="Not authenticated")
-# 			else: return None
-# 		return api_key
+class APIKeyHeader(DumbKeyHeader):
+	async def __call__(self,request:Request=None,websocket:WebSocket=None):
+		return await super().__call__(request or websocket)
+
+		# api_key = request.headers.get(self.model.name)
+		# if not api_key:
+		# 	if self.auto_error: raise HTTPException(status_code=401, detail="Not authenticated")
+		# 	else: return None
+		# return api_key
 
 API_KEY = APIKeyHeader(name='token')
 

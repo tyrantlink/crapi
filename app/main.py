@@ -2,6 +2,7 @@ from app.dependencies import DB,inc_user_api_usage,api_key_validator
 from app.utils.version_checker import get_semantic_version
 from app.utils.db.documents.ext.flags import APIFlags
 from .routers import auto_responses,user,internal
+from .gateway import manager as gateway_manager
 from contextlib import asynccontextmanager
 from fastapi import FastAPI,Request
 from app.limiter import RateLimiter
@@ -15,6 +16,7 @@ async def lifespan(app:FastAPI):
 	global VERSION
 	await DB.connect()
 	VERSION = await get_semantic_version()
+	create_task(gateway_manager.heartbeat_loop())
 	yield
 
 app = FastAPI(lifespan=lifespan)

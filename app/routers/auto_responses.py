@@ -151,7 +151,7 @@ async def delete_au(au_id:str,token:TokenData=Security(api_key_validator)) -> JS
 @router.patch('/{au_id}')
 async def patch_au(
 	au_id:str,
-	mods:Annotated[dict,"test"],
+	mods:dict,
 	token:TokenData=Security(api_key_validator)
 ) -> AutoResponse:
 	if not ((token.permissions & APIFlags.ADMIN)|(token.permissions & APIFlags.BOT)):
