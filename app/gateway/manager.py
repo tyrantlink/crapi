@@ -2,7 +2,7 @@ from app.utils.crapi.models import BaseGatewayMessage,Ack,Heartbeat,Request,Resp
 from app.utils.crapi.enums import GatewayOpCode as Op
 from app.gateway.client import GatewayClient
 from fastapi import WebSocket
-from asyncio import sleep,gather
+from asyncio import sleep,gather,create_task
 from time import time
 
 class GatewayManager:
@@ -29,17 +29,28 @@ class GatewayManager:
 		client = self.__clients.pop(identifier,None)
 		if client is not None and close:
 			await client.disconnect(reason)
+	
+	async def wait_for_response(self,identifier:str,seq:int) -> None:
+		for _ in range(5):
+			await sleep(1)
+			if seq in self.__clients[identifier].pending_responses:
+				continue
+			break
+		else:
+			raise TimeoutError('client did not respond to request')
+		await self.send(identifier,Ack())
 
 	async def send(self,
 		identifier:str,
 		message:BaseGatewayMessage,
 		require_response:bool=False
-	) -> None:
+	) -> int:
 		self.inc_seq(identifier)
 		message.seq = self.__clients[identifier].seq
 		await self.__clients[identifier].send(message.model_dump_json())
 		if require_response:
 			self.__clients[identifier].pending_responses.add(message.seq+1)
+		return message.seq
 
 	async def broadcast(self,
 		message:BaseGatewayMessage,
@@ -69,10 +80,6 @@ class GatewayManager:
 			raise TimeoutError('not all clients responded')
 		return clients
 
-
-
-
-
 	async def handle_message(self,identifier:str,message:dict) -> None:
 		self.__clients[identifier].pending_responses.discard(message['seq'])
 		self.inc_seq(identifier)
@@ -94,9 +101,15 @@ class GatewayManager:
 		await self.send(identifier,Ack())
 
 	async def handle_request(self,identifier:str,message:Request) -> None:
-		await self.disconnect(identifier,'request received by server')
+		if message.forward is None:
+			await self.disconnect(identifier,'request received by server without forward')
+			return
+		seq = await self.send(message.forward,message,True)
+		create_task(self.wait_for_response(identifier,seq))
 
 	async def handle_response(self,identifier:str,message:Response):
 		... #! implement this when it's needed
+		#! also make the entire request/response system less complete doo doo
+		#! probably have a to field in the response, which is the request seq
 
 manager = GatewayManager()
