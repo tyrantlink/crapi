@@ -1,6 +1,7 @@
 from fastapi import Security,HTTPException,Request,WebSocket
 from fastapi.security import APIKeyHeader as DumbKeyHeader
 from app.utils.tyrantlib import decode_b66,base66chars
+from app.utils.db.documents.ext.flags import APIFlags
 from asyncio import sleep,create_task,get_event_loop
 from concurrent.futures import ThreadPoolExecutor
 from app.utils.db import MongoDatabase
@@ -55,6 +56,9 @@ class TokenData(NamedTuple):
 	timestamp: int
 	key: int
 	permissions: int
+
+	def has_perm(self,perm:int) -> bool:
+		return self.permissions & APIFlags.ADMIN or self.permissions & perm
 
 async def acheckpw(password:str,hashed:str) -> bool:
 	with ThreadPoolExecutor() as executor:

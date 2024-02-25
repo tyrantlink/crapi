@@ -15,8 +15,8 @@ from pathlib import Path
 router = APIRouter(prefix='/au')
 
 async def _base_get_checks(au_id:str,token:TokenData) -> AutoResponse:
-	if not ((
-		token.permissions & APIFlags.ADMIN)|(token.permissions & APIFlags.BOT) or
+	if not (
+		token.has_perm(APIFlags.BOT) or
 		au_id in (await DB.user(token.user_id)).data.auto_responses.found
 	):
 		raise HTTPException(401,'you do not have permission to access this auto response!')
@@ -57,7 +57,7 @@ async def get_masked_file(masked_url:str):
 
 @router.post('/{au_id}/masked_url')
 async def post_masked_url(au_id:str,token:TokenData=Security(api_key_validator)) -> str:
-	if not ((token.permissions & APIFlags.ADMIN)|(token.permissions & APIFlags.BOT)):
+	if not token.has_perm(APIFlags.BOT):
 		raise HTTPException(403,'you do not have permission to use this endpoint!')
 	mask = DB.new.au_mask(au_id)
 	await mask.insert()
@@ -95,7 +95,7 @@ async def get_new_au_id(au_type:Literal['b','u','c','m','p']) -> str:
 
 @router.post('/')
 async def post_au(au:AutoResponse,token:TokenData=Security(api_key_validator)) -> AutoResponse:
-	if not ((token.permissions & APIFlags.ADMIN)|(token.permissions & APIFlags.BOT)):
+	if not token.has_perm(APIFlags.BOT):
 		raise HTTPException(403,'you do not have permission to use this endpoint!')
 	if au.id != 'unset':
 		raise HTTPException(400,'auto response id must be "unset"!')
@@ -141,7 +141,7 @@ async def post_au_file(
 
 @router.delete('/{au_id}')
 async def delete_au(au_id:str,token:TokenData=Security(api_key_validator)) -> JSONResponse:
-	if not ((token.permissions & APIFlags.ADMIN)|(token.permissions & APIFlags.BOT)):
+	if not token.has_perm(APIFlags.BOT):
 		raise HTTPException(403,'you do not have permission to use this endpoint!')
 	au = await _base_get_checks(au_id,token)
 	au.type = AutoResponseType.deleted
@@ -154,7 +154,7 @@ async def patch_au(
 	mods:dict,
 	token:TokenData=Security(api_key_validator)
 ) -> AutoResponse:
-	if not ((token.permissions & APIFlags.ADMIN)|(token.permissions & APIFlags.BOT)):
+	if not token.has_perm(APIFlags.BOT):
 		raise HTTPException(403,'you do not have permission to use this endpoint!')
 	au = await _base_get_checks(au_id,token)
 	if au.id != au_id:
