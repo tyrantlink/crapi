@@ -126,14 +126,14 @@ async def post_au_file(
 			path = f'./data/au/personal/{au.data.user}'
 		case _: raise HTTPException(500,f'invalid auto response id! `{au_id}`')
 
-	if (not replace and 
+	if (
 			file.filename is not None and 
 			not fullmatch(r'^.*\.(png|mp4|gif|webm)$',file.filename)
 	):
 		raise HTTPException(400,'file must be a png, mp4, gif or webm!')
 
 	Path(path).mkdir(parents=True,exist_ok=True)
-	if exists(f'{path}/{au.response}'):
+	if not replace and exists(f'{path}/{au.response}'):
 		raise HTTPException(400,'file already exists!')
 	with open(f'{path}/{au.response}','wb') as f:
 		f.write(await file.read())
