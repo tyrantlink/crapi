@@ -11,7 +11,7 @@ router = APIRouter(prefix='/i')
 
 @router.websocket('/gateway')
 async def gateway(ws:WebSocket,token:TokenData=Security(api_key_validator)):
-	if not token.permissions & APIFlags.BOT:
+	if not (token.permissions & APIFlags.ADMIN)|(token.permissions & APIFlags.BOT):
 		raise HTTPException(403,'you do not have permission to use this endpoint!')
 	await manager.connect(str(token.user_id),ws)
 	try:
@@ -25,7 +25,7 @@ async def gateway(ws:WebSocket,token:TokenData=Security(api_key_validator)):
 
 @router.post('/reload_au')
 async def reload_au(token:TokenData=Security(api_key_validator)) -> JSONResponse:
-	if not token.permissions & APIFlags.BOT:
+	if not (token.permissions & APIFlags.ADMIN)|(token.permissions & APIFlags.BOT):
 		raise HTTPException(403,'you do not have permission to use this endpoint!')
 	try: await manager.broadcast(Request(req=Req.RELOAD_AU),True)
 	except TimeoutError: raise HTTPException(500,'not all clients responded!')
