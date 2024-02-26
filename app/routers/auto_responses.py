@@ -28,7 +28,9 @@ async def _base_get_checks(au_id:str,token:TokenData) -> AutoResponse:
 		raise HTTPException(404,'auto response not found!')
 	return au
 
-def new_au_type(au:AutoResponse) -> Literal['b','u','c','m','p']:
+def new_au_type(au:AutoResponse) -> Literal['b','u','c','m','p','s']:
+	if au.type == AutoResponseType.script:
+		return 's'
 	if ( #? custom
 		au.data.custom and 
 		au.data.guild is not None
@@ -45,12 +47,22 @@ def new_au_type(au:AutoResponse) -> Literal['b','u','c','m','p']:
 	): return 'm'
 	return 'b'
 
-async def new_au_id(au_type:Literal['b','u','c','m','p']) -> str:
+async def new_au_id(au_type:Literal['b','u','c','m','p','s']) -> str:
 	docs = DB._client.auto_responses.find(
 		filter={'_id':{'$regex':f'^{au_type}\d+$'}},
 		projection={'_id':True})
 	new_id = sorted([int(doc['_id'][1:]) async for doc in docs])[-1]+1
 	return f'{au_type}{new_id}'
+
+def file_au_path(au:AutoResponse) -> str:
+	match au.id[0]:
+		case 'b': return f'./data/au/base/{au.response}'
+		case 'u': return f'./data/au/unique/{au.data.guild}/{au.response}'
+		case 'c': return f'./data/au/custom/{au.data.guild}/{au.response}'
+		case 'm': return f'./data/au/mention/{au.trigger}/{au.response}'
+		case 'p': return f'./data/au/personal/{au.data.user}/{au.response}'
+		case 's': return f'./data/au/scripted/{au.response}'
+	return HTTPException(500,'invalid auto response category!')
 
 @router.get('/{au_id}',
 	summary = 'get the data of an auto response',
@@ -69,14 +81,7 @@ async def get__au_id__file(au_id:str,token:TokenData=Security(api_key_validator)
 	au = await _base_get_checks(au_id,token)
 	if au.type != AutoResponseType.file:
 		raise HTTPException(400,'auto response is not a file!')
-	match au.id[0]:
-		case 'b': return FileResponse(f'./data/au/base/{au.response}')
-		case 'u': return FileResponse(f'./data/au/unique/{au.data.guild}/{au.response}')
-		case 'c': return FileResponse(f'./data/au/custom/{au.data.guild}/{au.response}')
-		case 'm': return FileResponse(f'./data/au/mention/{au.data.user}/{au.response}')
-		case 'p': return FileResponse(f'./data/au/personal/{au.data.user}/{au.response}')
-		case _: pass
-	return HTTPException(500,'invalid auto response category!')
+	return FileResponse(file_au_path(au))
 
 @router.get('/file/{masked_url}',
 	summary = 'get the file of an auto response by it\'s masked url',
@@ -90,14 +95,7 @@ async def get__file__masked_url(masked_url:str) -> FileResponse:
 		raise HTTPException(404,'auto response not found!')
 	if au.type == AutoResponseType.deleted:
 		return FileResponse('./data/au/deleted.png')
-	match au.id[0]:
-		case 'b': return FileResponse(f'./data/au/base/{au.response}')
-		case 'u': return FileResponse(f'./data/au/unique/{au.data.guild}/{au.response}')
-		case 'c': return FileResponse(f'./data/au/custom/{au.data.guild}/{au.response}')
-		case 'm': return FileResponse(f'./data/au/mention/{au.trigger}/{au.response}')
-		case 'p': return FileResponse(f'./data/au/personal/{au.data.user}/{au.response}')
-		case _: pass
-	return HTTPException(500,'invalid auto response category!')
+	return FileResponse(file_au_path(au))
 
 @router.post('/{au_id}/masked_url',
 	summary = 'create a masked url for an auto response',
@@ -139,18 +137,8 @@ async def post__au_id__file(
 	au = await _base_get_checks(au_id,token)
 	if au.type == AutoResponseType.deleted:
 		raise HTTPException(400,'you cannot upload a file to a deleted auto response!')
-	match au.id[0]:
-		case 'b':
-			path = f'./data/au/base'
-		case 'u':
-			path = f'./data/au/unique/{au.data.guild}'
-		case 'c':
-			path = f'./data/au/custom/{au.data.guild}'
-		case 'm':
-			path = f'./data/au/mention/{au.data.user}'
-		case 'p':
-			path = f'./data/au/personal/{au.data.user}'
-		case invalid: return HTTPException(500,f'invalid auto response category `{invalid}`!')
+
+	path = '/'.join(file_au_path(au).split('/')[:-1])
 
 	if (
 			file.filename is not None and 
