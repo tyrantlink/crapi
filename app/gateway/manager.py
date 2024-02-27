@@ -2,12 +2,15 @@ from app.utils.crapi.models import BaseGatewayMessage,Ack,Heartbeat,Request,Resp
 from app.utils.crapi.enums import GatewayOpCode as Op
 from app.gateway.client import GatewayClient
 from fastapi import WebSocket
-from asyncio import sleep,gather,create_task
+from asyncio import sleep,gather,create_task,wait_for,Event
 from time import time
 
 class GatewayManager:
 	def __init__(self):
 		self.__clients:dict[str,GatewayClient] = dict()
+	
+	def client(self,identifier:str) -> GatewayClient:
+		return self.__clients[identifier]
 	
 	async def heartbeat_loop(self):
 		while True:
@@ -17,9 +20,9 @@ class GatewayManager:
 			await sleep(1)
 	
 	def inc_seq(self,identifier:str) -> None:
-		self.__clients[identifier].seq += 1
-		if self.__clients[identifier].seq == 8192:
-			self.__clients[identifier].seq = 0
+		self.client(identifier).seq += 1
+		if self.client(identifier).seq == 8192:
+			self.client(identifier).seq = 0
 
 	async def connect(self,identifier:str,ws:WebSocket) -> None:
 		await ws.accept()
@@ -31,13 +34,13 @@ class GatewayManager:
 			await client.disconnect(reason)
 	
 	async def wait_for_response(self,identifier:str,seq:int) -> None:
-		for _ in range(5):
-			await sleep(1)
-			if seq in self.__clients[identifier].pending_responses:
-				continue
-			break
-		else:
+		event = self.client(identifier).pending_responses.get(seq,None)
+		if event is None:
+			return
+		try: await wait_for(event.wait(),5)
+		except TimeoutError:
 			raise TimeoutError('client did not respond to request')
+		del self.client(identifier).pending_responses[seq]
 		await self.send(identifier,Ack())
 
 	async def send(self,
@@ -46,19 +49,19 @@ class GatewayManager:
 		require_response:bool=False
 	) -> int:
 		self.inc_seq(identifier)
-		message.seq = self.__clients[identifier].seq
-		await self.__clients[identifier].send(message.model_dump_json())
+		message.seq = self.client(identifier).seq
+		await self.client(identifier).send(message.model_dump_json())
 		if require_response:
-			self.__clients[identifier].pending_responses.add(message.seq+1)
+			self.client(identifier).pending_responses[message.seq+1] = Event()
 		return message.seq
 
 	async def broadcast(self,
 		message:BaseGatewayMessage,
 		required_response:bool=False
 	) -> list[GatewayClient]:
-		messages  = []
-		clients   = []
-		sequences = []
+		messages:list[int]  = []
+		clients:list[GatewayClient] = []
+		sequences:list[int] = []
 		for client in self.__clients.values():
 			messages.append(self.send(client.identifier,message))
 			if not required_response:
@@ -81,7 +84,9 @@ class GatewayManager:
 		return clients
 
 	async def handle_message(self,identifier:str,message:dict) -> None:
-		self.__clients[identifier].pending_responses.discard(message['seq'])
+		pending_resp = self.client(identifier).pending_responses.pop(message['seq'],None)
+		if pending_resp is not None: pending_resp.set()
+		self.client(identifier).recent_responses[message['seq']] = message
 		self.inc_seq(identifier)
 		match Op(message['op']):
 			case Op.ACK: await self.handle_ack(identifier,Ack.model_validate(message))
@@ -94,10 +99,10 @@ class GatewayManager:
 		await self.disconnect(identifier,'ack received by server')
 
 	async def handle_heartbeat(self,identifier:str,message:Heartbeat) -> None:
-		if message.seq != self.__clients[identifier].seq:
-			await self.disconnect(identifier,f'sequence mismatch; expected {self.__clients[identifier].seq} got {message.seq}')
+		if message.seq != self.client(identifier).seq:
+			await self.disconnect(identifier,f'sequence mismatch; expected {self.client(identifier).seq} got {message.seq}')
 			return
-		self.__clients[identifier].last_heartbeat = time()
+		self.client(identifier).last_heartbeat = time()
 		await self.send(identifier,Ack())
 
 	async def handle_request(self,identifier:str,message:Request) -> None:
