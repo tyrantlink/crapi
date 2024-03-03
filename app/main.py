@@ -2,6 +2,7 @@ from app.dependencies import DB,inc_user_api_usage,api_key_validator
 from app.utils.version_checker import get_semantic_version
 from app.utils.db.documents.ext.flags import APIFlags
 from app.gateway import manager as gateway_manager
+from fastapi.responses import RedirectResponse
 from contextlib import asynccontextmanager
 from app.openapi_tags import insert_tag
 from app.limiter import RateLimiter
@@ -57,6 +58,9 @@ async def root_middleware(request:Request,call_next:Callable):
 	description = 'simple root endpoint,',
 	responses = general_docs.get__)
 async def root(request:Request):
+	user_agent = request.headers.get('user-agent','')
+	if 'Mozilla' in user_agent:
+		return RedirectResponse('/docs',308)
 	return 'crab api, for use with /reg/nal and /reg/nal derivatives.'
 
 @app.get('/version',
