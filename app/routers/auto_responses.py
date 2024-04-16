@@ -88,6 +88,11 @@ async def get__au_id__file(au_id:str,token:TokenData=Security(api_key_validator)
 	description = 'get the file of an auto response by it\'s masked url, used as auto response response',
 	responses = auto_responses_docs.responses.get__file__masked_url)
 async def get__file__masked_url(masked_url:str) -> FileResponse:
+	masked_url = (masked_url
+		).removesuffix('.png'
+		).removesuffix('.mp4'
+		).removesuffix('.gif'
+		).removesuffix('.webm')
 	if not fullmatch(rf'[{escape(base66chars)}]+',masked_url):
 		raise HTTPException(400,'invalid masked url!')
 	mask = await DB.au_mask(PydanticObjectId(hex(decode_b66(masked_url))[2:]))
@@ -102,12 +107,11 @@ async def get__file__masked_url(masked_url:str) -> FileResponse:
 	description = 'create a masked url for an auto response, user must be a bot',
 	responses = auto_responses_docs.responses.post__au_id__masked_url)
 async def post__au_id__masked_url(au_id:str,token:TokenData=Security(api_key_validator)) -> str:
-	if not token.has_perm(APIFlags.BOT):
-		raise HTTPException(403,'you do not have permission to use this endpoint!')
-	mask = DB.new.au_mask(au_id)
+	au = await _base_get_checks(au_id,token)
+	mask = DB.new.au_mask(au.id)
 	await mask.insert()
 	path = encode_b66(int(str(mask.id),16))
-	return f'{BASE_URL}/au/file/{path}'
+	return f'{BASE_URL}/au/file/{path}.{au.response.split(".")[-1]}'
 
 @router.post('/',
 	summary = 'create a new auto response',
