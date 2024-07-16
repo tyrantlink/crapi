@@ -1,7 +1,7 @@
+from app.utils.db.documents.ext.enums import AutoResponseType,AutoResponseMethod
 from app.dependencies import DB,BASE_URL,api_key_validator,TokenData
 from fastapi import APIRouter,HTTPException,Security,UploadFile,File
 from app.utils.tyrantlib import encode_b66,decode_b66,base66chars
-from app.utils.db.documents.ext.enums import AutoResponseType
 from fastapi.responses import FileResponse,JSONResponse
 from app.utils.db.documents.ext.flags import APIFlags
 from app.utils.db.documents import AutoResponse
@@ -43,7 +43,7 @@ def new_au_type(au:AutoResponse) -> Literal['b','u','c','m','p','s']:
 		au.data.user is not None
 	): return 'p'
 	if ( #? mention
-		au.type == AutoResponseType.mention and
+		au.method == AutoResponseMethod.mention and
 		match(r'^\d+$',au.trigger)
 	): return 'm'
 	return 'b'
