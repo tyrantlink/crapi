@@ -43,6 +43,7 @@ def new_au_type(au:AutoResponse) -> Literal['b','u','c','m','p','s']:
 		au.data.user is not None
 	): return 'p'
 	if ( #? mention
+		au.type == AutoResponseType.mention and
 		match(r'^\d+$',au.trigger)
 	): return 'm'
 	return 'b'
